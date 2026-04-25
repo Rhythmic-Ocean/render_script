@@ -16,6 +16,18 @@ def log_error(identifier, message):
     print(f"ERROR logged for {identifier}: {message}")
 
 
+if os.name == "nt":
+    DANSER_DIR = os.path.abspath("danser-win")
+    DANSER_BIN = os.path.join(DANSER_DIR, "danser-cli.exe")
+else:
+    DANSER_DIR = os.path.abspath("danser_dir")
+    DANSER_BIN = os.path.join(DANSER_DIR, "danser-cli")
+
+# Ensure necessary directories exist
+for folder in ["Songs", "Skins", "videos"]:
+    os.makedirs(os.path.join(DANSER_DIR, folder), exist_ok=True)
+
+
 def download_beatmap(beatmapset_id, songs_dir):
     url = f"https://api.nerinyan.moe/d/{beatmapset_id}"
     print(f"Downloading beatmapset {beatmapset_id} from {url}...")
@@ -58,18 +70,11 @@ def render_score(client, score, beatmap_id, skin_name=None):
             beatmap_details = client.get_beatmap(beatmap_id)
             beatmapset_id = beatmap_details.beatmapset_id
 
-        songs_dir = os.path.abspath(os.path.join("danser_dir", "Songs"))
+        songs_dir = os.path.join(DANSER_DIR, "Songs")
         bm_error = download_beatmap(beatmapset_id, songs_dir)
         if isinstance(bm_error, str) and not bm_error.endswith(".osz"):
             log_error(beatmap_id, bm_error)
             return
-
-        if os.name == "nt":
-            danser_exe = "danser-cli.exe"
-            danser_bin = os.path.abspath(os.path.join("danser-win", danser_exe))
-        else:
-            danser_exe = "danser-cli"
-            danser_bin = os.path.abspath(os.path.join("danser_dir", danser_exe))
 
         output_name = f"render_bm_{beatmap_id}_{score.id}"
 
@@ -77,7 +82,7 @@ def render_score(client, score, beatmap_id, skin_name=None):
 
         print(f"Running danser to record replay...")
         cmd = [
-            danser_bin,
+            DANSER_BIN,
             "-replay",
             replay_path,
             "-record",
@@ -97,7 +102,7 @@ def render_score(client, score, beatmap_id, skin_name=None):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            cwd=os.path.abspath("danser_dir"),
+            cwd=DANSER_DIR,
             bufsize=1,
             universal_newlines=True,
         )
@@ -106,7 +111,7 @@ def render_score(client, score, beatmap_id, skin_name=None):
 
         process.wait()
         if process.returncode == 0:
-            video_path = os.path.abspath(os.path.join("danser_dir", "videos", f"{output_name}.mp4"))
+            video_path = os.path.join(DANSER_DIR, "videos", f"{output_name}.mp4")
             print(f"Rendering complete for score {score.id}! Video: {video_path}")
         else:
             log_error(
@@ -147,9 +152,9 @@ def main():
     score_ids = args.score_ids
 
     if skin_name:
-        skin_path = os.path.join("danser_dir", "Skins", skin_name)
+        skin_path = os.path.join(DANSER_DIR, "Skins", skin_name)
         if not os.path.exists(skin_path):
-            print(f"ERROR: Skin '{skin_name}' not found in danser_dir/Skins")
+            print(f"ERROR: Skin '{skin_name}' not found in {os.path.join(DANSER_DIR, 'Skins')}")
             sys.exit(1)
 
     client = osu.Client.from_credentials(
